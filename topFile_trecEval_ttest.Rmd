@@ -1,0 +1,52 @@
+---
+title: "topFile_trecEval_ttest"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Description
+This R markdown will briefly demonstrates how to evaluate all top files in a folder using trecEval and then do t-test for each results.
+
+
+topFilesPath = "/Volumes/Data/Phd/R/topFiles/"
+trecPath = "/users/n9546031/tools/trec_eval.9.0/"
+qrelPath = "/volumes/data/phd/data/clef2016_eval/task1.qrels.30Aug"
+
+# get list of file names in the folder
+files <- list.files(path= topFilesPath)
+
+# create an empty list to store the trec eval results
+trecResult = list()
+
+#for each file in the folder
+for (i in 1:length(files)){
+# build the trec command to measure map of each top file
+  trecCommand = paste(trecPath, "trec_eval -q -m map ", qrelPath, " ", topFilesPath, files[i], sep="")
+# execute treceval and capture the result in a temporary vector as it still dirty
+  tempResult <- system(trecCommand, intern=TRUE)
+  print (files[i])
+  tempScore = vector('numeric')
+# split each line of result by \t and add only the map score to the temp vector
+  for (j in 1:length(tempResult)){
+    parts <- strsplit(tempResult[[j]],"\t")[[1]]
+# ignore the overall results from trec eval
+    if (!parts[2]=="all") {
+      tempScore[j]<-as.numeric(parts[3])
+    }
+  }
+  
+# add the temp vector to trec result list
+  trecResult[[files[i]]]<-tempScore
+}
+
+#measure two tailed t-test for all pair of files
+for (i in 1:(length(files)-1)){
+  for (j in (i+1):length(files)){
+    print (paste("t-test between", files[i], "and", files[j]))
+    print (t.test(trecResult[[files[i]]],trecResult[[files[j]]],paired=TRUE,two.sided=TRUE)$p.value)
+  }
+}
+
